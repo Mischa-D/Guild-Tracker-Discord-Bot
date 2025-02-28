@@ -19,9 +19,15 @@ export const handler = (client: Client) => {
   });
 
   client.on("interactionCreate", async (interaction) => {
-    if (!interaction.isChatInputCommand()) return;
+    if (!interaction.isChatInputCommand() && !interaction.isAutocomplete())
+      return;
 
     const command = commands.get(interaction.commandName);
+
+    if (interaction.isAutocomplete()) {
+      await command?.autocomplete?.(interaction);
+      return;
+    }
 
     if (!command) {
       await replyEphemeral(interaction, "Could not find the requested command");
