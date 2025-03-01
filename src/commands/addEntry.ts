@@ -1,5 +1,9 @@
 import { EmbedBuilder, SlashCommandBuilder } from "discord.js";
-import { memberStatsEmbed, subguildStatsEmbed } from "../utils/embedutils.js";
+import {
+  createEmbedTemplate,
+  memberStatsEmbed,
+  subguildStatsEmbed,
+} from "../utils/embedutils.js";
 import { ICommand } from "../types/ICommand.js";
 import { createMember, createSubguild } from "../store.js";
 import { CustomError } from "../errors/CustomError.js";
@@ -9,6 +13,7 @@ type SubCommandEnum = "member" | "guild";
 const addMember: ICommand = {
   data: new SlashCommandBuilder()
     .setName("add")
+    .setDescription("create a new guild or member entry")
     .addSubcommand((option) =>
       option
         .setName("member")
@@ -38,42 +43,56 @@ const addMember: ICommand = {
         )
     ),
   async execute(interaction) {
-    const { guildId, options, reply } = interaction;
+    const { guildId, options } = interaction;
     if (!guildId)
       throw new CustomError(
         "Could not associate request with a Discord server"
       );
 
-    let embed = new EmbedBuilder();
+    let embed: Promise<EmbedBuilder>;
     const name = options.getString("name", true);
     const discordIdentity = options.getUser("user")?.toString();
     const guildName = options.getString("guild") ?? undefined;
     const subCommand = options.getSubcommand() as SubCommandEnum;
 
-    if (subCommand === "member") {
-      const newMember = createMember(guildId, {
-        name,
-        warnings: 0,
-        isActive: true,
-        isBanned: false,
-        discordIdentity,
-        guildName,
-      });
+    switch (subCommand) {
+      case "member":
+        const newMember = createMember(guildId, {
+          name,
+          warnings: 0,
+          isActive: true,
+          isBanned: false,
+          discordIdentity,
+          guildName,
+        });
 
-      // output
-      embed = memberStatsEmbed("New Member Added", "Created Entry", newMember);
+        embed = memberStatsEmbed(
+          "New Member Added",
+          "Created Entry",
+          newMember
+        );
+        break;
+      case "guild":
+        const newGuild = createSubguild(guildId, {
+          guildName: name,
+          isActive: true,
+          members: [],
+        });
+        embed = subguildStatsEmbed(
+          "New Guild Added",
+          "Created Entry",
+          newGuild
+        );
+        break;
+
+      default:
+        embed = createEmbedTemplate();
+        break;
     }
-    if (subCommand === "guild") {
-      const newGuild = createSubguild(guildId, {
-        guildName: name,
-        isActive: true,
-        members: []
-      });
 
-      embed = subguildStatsEmbed("New Guild Added", "Created Entry", newGuild);
-    }
-
-    await reply({ embeds: [embed] });
+    await interaction.reply({
+      embeds: [await embed],
+    });
   },
 };
 

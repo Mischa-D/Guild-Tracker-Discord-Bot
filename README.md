@@ -12,7 +12,7 @@
 - run
   ```
   npm install
-  npm register
+  npm run register
   ```
 
 ## Start

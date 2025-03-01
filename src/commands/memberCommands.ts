@@ -20,6 +20,7 @@ type AutocompleteOptionsEnum = "name" | "guild";
 const addMember: ICommand = {
   data: new SlashCommandBuilder()
     .setName("member")
+    .setDescription("commands related to a member")
     .addSubcommand((option) =>
       option
         .setName("ban")
@@ -27,7 +28,7 @@ const addMember: ICommand = {
         .addStringOption((option) =>
           option
             .setName("name")
-            .setDescription("name of the member to kick")
+            .setDescription("name of the member to ban")
             .setAutocomplete(true)
             .setRequired(true)
         )
@@ -77,7 +78,7 @@ const addMember: ICommand = {
     ),
 
   async execute(interaction) {
-    const { guildId, options, reply } = interaction;
+    const { guildId, options } = interaction;
 
     if (!guildId)
       throw new CustomError(
@@ -89,17 +90,21 @@ const addMember: ICommand = {
 
     const newMember: IUpdateMember = {};
 
-    if (subCommand === "ban") {
-      newMember.isBanned = true;
-    }
-    if (subCommand === "move") {
-      const subguildId = options.getString("guild", true);
-      const subguild = moveGuildMember(guildId, subguildId, memberid);
-      newMember.guildName = subguild.guildName;
-    }
-    if (subCommand === "warn") {
-      const { warnings = 0 } = getMember(guildId, memberid) ?? {};
-      newMember.warnings = warnings + 1;
+    switch (subCommand) {
+      case "ban":
+        newMember.isBanned = true;
+        break;
+      case "move":
+        const subguildId = options.getString("guild", true);
+        const subguild = moveGuildMember(guildId, subguildId, memberid);
+        newMember.guildName = subguild.guildName;
+        break;
+      case "warn":
+        const { warnings = 0, isBanned } = getMember(guildId, memberid) ?? {};
+        if (!isBanned) newMember.warnings = warnings + 1;
+        break;
+      default:
+        break;
     }
 
     const updatedMember =
@@ -107,19 +112,18 @@ const addMember: ICommand = {
         ? getMember(guildId, memberid)
         : updateMember(guildId, memberid, newMember);
 
-    const embed = memberStatsEmbed(
+    const embed = await memberStatsEmbed(
       "Member Updated",
       "Updated Entry",
       updatedMember
     );
-    await reply({ embeds: [embed] });
+    await interaction.reply({ embeds: [embed] });
   },
   async autocomplete(interaction) {
-    const {
-      guildId,
-      options: { getFocused },
-    } = interaction;
-    const { name: optionName, value } = getFocused(true) as {
+    const { guildId } = interaction;
+    const { name: optionName, value } = interaction.options.getFocused(
+      true
+    ) as {
       name: AutocompleteOptionsEnum;
       value: string;
     };

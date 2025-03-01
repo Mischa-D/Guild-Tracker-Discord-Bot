@@ -1,8 +1,8 @@
-import { EmbedBuilder, UserMention } from "discord.js";
+import { EmbedBuilder } from "discord.js";
 import { IMember } from "../types/IMember.js";
 import { ISubguild } from "../types/IGuild.js";
 
-export const createEmbedTemplate = () => {
+export const createEmbedTemplate = async () => {
   const embed = new EmbedBuilder()
     .setColor("#3837b9")
     .setTimestamp()
@@ -14,13 +14,13 @@ export const createEmbedTemplate = () => {
   return embed;
 };
 
-export const memberStatsEmbed = (
+export const memberStatsEmbed = async (
   title: string,
   description: string,
   member: IMember
 ) => {
   const { name, discordIdentity, guildName, warnings, isBanned } = member;
-  const embed = createEmbedTemplate();
+  const embed = await createEmbedTemplate();
   embed.setTitle(title);
   embed.setDescription(`${description} for Member ${name}`);
 
@@ -28,24 +28,24 @@ export const memberStatsEmbed = (
     embed.addFields({ name: "Discord Username", value: discordIdentity });
   guildName && embed.addFields({ name: "In Guild", value: guildName });
   isBanned
-    ? embed.addFields({ name: `has ${warnings} warnings`, value: "\u200B" })
-    : embed.addFields({
+    ? embed.addFields({
         name: `is banned from your guild(s)`,
         value: "\u200B",
-      });
+      })
+    : embed.addFields({ name: `has ${warnings} warnings`, value: "\u200B" });
 
   return embed;
 };
 
-export const subguildStatsEmbed = (
+export const subguildStatsEmbed = async (
   title: string,
   description: string,
   subguild: ISubguild
 ) => {
   const { guildName } = subguild;
-  const embed = createEmbedTemplate();
+  const embed = await createEmbedTemplate();
   embed.setTitle(title);
-  embed.setDescription(`${description} for guild ${guildName}`);
+  embed.setDescription(`${description} for Guild ${guildName}`);
 
   embed.addFields({ name: "Membercount", value: `${subguild.members.length}` }); // TODO: real membercount
 
