@@ -10,9 +10,13 @@ export const getMembersOfGuild = (guildId: string) => {
 };
 
 export const getMember = (guildId: string, memberId: string) => {
-  return getMembersOfGuild(guildId)?.find(
+  const member = getMembersOfGuild(guildId)?.find(
     (member) => member.memberid === memberId
   );
+
+  if (!member) throw new NotFoundError("Could not find entry for that member");
+
+  return member;
 };
 
 export const createMember = (guildId: string, member: ISaveMember) => {
@@ -25,9 +29,11 @@ export const createMember = (guildId: string, member: ISaveMember) => {
   if (!membersOfGuild) {
     console.log("creating new guild member store for guild", guildId);
     MemberCollectionPerGuild.set(guildId, [memberWithUuid]);
-    return;
+  } else {
+    membersOfGuild.push(memberWithUuid);
   }
-  membersOfGuild.push(memberWithUuid);
+
+  return memberWithUuid;
 };
 
 export const updateMember = (
@@ -36,7 +42,6 @@ export const updateMember = (
   memberUpdate: Partial<ISaveMember>
 ) => {
   const member = getMember(guildId, memberId);
-  if (!member) throw new NotFoundError("Cannot update user without an entry");
 
   (Object.keys(member) as (keyof IMember)[]).forEach((key) => {
     if (key === "memberid") return;
