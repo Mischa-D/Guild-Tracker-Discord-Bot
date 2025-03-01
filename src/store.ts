@@ -3,6 +3,7 @@ import { IMember, ISaveMember } from "./types/IMember.js";
 import { v6 as generateUuid } from "uuid";
 import { NotFoundError } from "./errors/NotFoundError.js";
 import { ISaveSubguild, ISubguild } from "./types/IGuild.js";
+import { CustomError } from "./errors/CustomError.js";
 
 const MemberCollectionPerGuild = new Collection<string, IMember[]>();
 const SubguildsPerGuild = new Collection<string, ISubguild[]>();
@@ -101,4 +102,30 @@ export const updateGuild = (
   });
 
   return subguild;
+};
+
+export const moveGuildMember = (
+  guildId: string,
+  newSubguildId: string,
+  memberId: string
+) => {
+  const subguilds = getSubguildsOfGuild(guildId);
+  if (!subguilds) throw new NotFoundError("No guilds found for this server");
+
+  const newSubguild = getSubguild(guildId, newSubguildId);
+  if (newSubguild.members.find((id) => id === memberId))
+    throw new CustomError("Member is already part of that guild");
+  newSubguild.members.push(memberId);
+
+  for (const subguild of subguilds) {
+    const index = subguild.members.findIndex((id) => id === memberId);
+
+    if (index === -1) {
+      continue;
+    }
+    delete subguild.members[index];
+    break;
+  }
+
+  return newSubguild;
 };

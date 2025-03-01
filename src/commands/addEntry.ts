@@ -67,6 +67,7 @@ const addMember: ICommand = {
       const newGuild = createSubguild(guildId, {
         guildName: name,
         isActive: true,
+        members: []
       });
 
       embed = subguildStatsEmbed("New Guild Added", "Created Entry", newGuild);

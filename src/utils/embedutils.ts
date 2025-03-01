@@ -47,7 +47,7 @@ export const subguildStatsEmbed = (
   embed.setTitle(title);
   embed.setDescription(`${description} for guild ${guildName}`);
 
-  embed.addFields({ name: "Membercount", value: "0" }); // TODO: real membercount
+  embed.addFields({ name: "Membercount", value: `${subguild.members.length}` }); // TODO: real membercount
 
   return embed;
 };
