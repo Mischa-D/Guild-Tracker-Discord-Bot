@@ -11,6 +11,7 @@ import { IUpdateMember } from "../types/IMember.js";
 import { guildAutocomplete } from "../utils/autocomplete/guildAutocomplete.js";
 import { memberAutocomplete } from "../utils/autocomplete/memberAutocomplete.js";
 import { WARN_THRESHOLD } from "../constants.js";
+import { ObjectId } from "mongodb";
 
 type SubCommandEnum = "ban" | "unban" | "move" | "check" | "warn" | "unwarn";
 type AutocompleteOptionsEnum = "name" | "guild";
@@ -107,7 +108,7 @@ const addMember: ICommand = {
         "Could not associate request with a Discord server"
       );
 
-    const memberid = options.getString("name", true);
+    const memberid = new ObjectId(options.getString("name", true));
     const subCommand = options.getSubcommand() as SubCommandEnum;
 
     const newMember: IUpdateMember = {};
@@ -122,19 +123,21 @@ const addMember: ICommand = {
         break;
       }
       case "move": {
-        const subguildId = options.getString("guild", true);
-        const subguild = moveGuildMember(guildId, subguildId, memberid);
+        const subguildId = new ObjectId(options.getString("guild", true));
+        const subguild = await moveGuildMember(guildId, subguildId, memberid);
         newMember.guildName = subguild.guildName;
         break;
       }
       case "warn": {
-        const { warnings = 0, isBanned } = getMember(guildId, memberid) ?? {};
+        const { warnings = 0, isBanned } =
+          (await getMember(guildId, memberid)) ?? {};
         if (!isBanned)
           newMember.warnings = Math.min(warnings + 1, WARN_THRESHOLD);
         break;
       }
       case "unwarn": {
-        const { warnings = 0, isBanned } = getMember(guildId, memberid) ?? {};
+        const { warnings = 0, isBanned } =
+          (await getMember(guildId, memberid)) ?? {};
         if (!isBanned) newMember.warnings = Math.max(warnings - 1, 0);
         break;
       }
@@ -144,10 +147,10 @@ const addMember: ICommand = {
 
     let embed: EmbedBuilder;
     if (subCommand === "check") {
-      const member = getMember(guildId, memberid);
+      const member = await getMember(guildId, memberid);
       embed = await memberStatsEmbed(`${member.name}`, "Showing Entry", member);
     } else {
-      const updatedMember = updateMember(guildId, memberid, newMember);
+      const updatedMember = await updateMember(guildId, memberid, newMember);
       embed = await memberStatsEmbed(
         "Member Updated",
         "Updated Entry",
@@ -157,7 +160,7 @@ const addMember: ICommand = {
 
     await interaction.reply({ embeds: [embed] });
   },
-  async autocomplete(interaction) {
+  async autocomplete(interaction, latestInteraction) {
     const { guildId } = interaction;
     const { name: optionName, value } = interaction.options.getFocused(
       true
@@ -174,16 +177,21 @@ const addMember: ICommand = {
 
     switch (optionName) {
       case "name":
-        choices = memberAutocomplete(guildId, value);
+        choices = await memberAutocomplete(guildId, value);
         break;
       case "guild":
-        choices = guildAutocomplete(guildId, value);
+        choices = await guildAutocomplete(guildId, value);
         break;
 
       default:
         break;
     }
 
+    console.log(choices);
+    if (interaction !== latestInteraction) {
+      console.log("caught");
+      return;
+    }
     interaction.respond(choices).catch(console.error);
   },
 };

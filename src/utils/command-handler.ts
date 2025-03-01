@@ -1,4 +1,4 @@
-import { Client, Collection } from "discord.js";
+import { CacheType, Client, Collection, Interaction } from "discord.js";
 import { getFiles } from "./get-command-files.js";
 import { ICommand } from "../types/ICommand.js";
 import { replyEphemeral } from "./reply.js";
@@ -7,6 +7,7 @@ import { COMMANDS_FOLDER } from "../constants.js";
 
 export const handler = (client: Client) => {
   const commands = new Collection<string, ICommand>();
+  let latestInteraction: Interaction<CacheType>;
 
   const commandFiles = getFiles(COMMANDS_FOLDER);
   console.log(commandFiles);
@@ -22,10 +23,11 @@ export const handler = (client: Client) => {
     if (!interaction.isChatInputCommand() && !interaction.isAutocomplete())
       return;
 
+    latestInteraction = interaction;
     const command = commands.get(interaction.commandName);
 
     if (interaction.isAutocomplete()) {
-      await command?.autocomplete?.(interaction);
+      await command?.autocomplete?.(interaction, latestInteraction);
       return;
     }
 

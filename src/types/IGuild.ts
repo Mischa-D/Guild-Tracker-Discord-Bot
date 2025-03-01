@@ -1,10 +1,9 @@
+import { ObjectId } from "mongodb";
+
 export interface ISubguild {
-  guildId: string;
   guildName: string;
   isActive: boolean;
-  members: string[];
+  members: ObjectId[];
 }
 
-export type ISaveSubguild = Omit<ISubguild, "guildId">;
-
-export type IUpdateSubguild = Omit<ISaveSubguild, "members">;
+export type IUpdateSubguild = Omit<ISubguild, "members">;

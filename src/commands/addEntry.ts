@@ -61,7 +61,7 @@ const addMember: ICommand = {
 
     switch (subCommand) {
       case "member":
-        const newMember = createMember(guildId, {
+        const newMember = await createMember(guildId, {
           name,
           warnings: 0,
           isActive: true,
@@ -77,7 +77,7 @@ const addMember: ICommand = {
         );
         break;
       case "guild":
-        const newGuild = createSubguild(guildId, {
+        const newGuild = await createSubguild(guildId, {
           guildName: name,
           isActive: true,
           members: [],
@@ -107,7 +107,8 @@ const addMember: ICommand = {
         "Could not associate request with a Discord server"
       );
 
-    interaction.respond(guildAutocomplete(guildId, value));
+    const choices = await guildAutocomplete(guildId, value);
+    interaction.respond(choices).catch(console.error);
   },
 };
 

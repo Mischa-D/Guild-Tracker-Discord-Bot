@@ -1,165 +1,193 @@
-import { Collection } from "discord.js";
-import { IMember, ISaveMember } from "./types/IMember.js";
-import { v6 as generateUuid } from "uuid";
-import { NotFoundError } from "./errors/NotFoundError.js";
-import { ISaveSubguild, ISubguild } from "./types/IGuild.js";
+import { IMember } from "./types/IMember.js";
+import {
+  GuildNotFoundError,
+  MemberNotFoundError,
+  NotFoundError,
+} from "./errors/NotFoundError.js";
+import { ISubguild } from "./types/IGuild.js";
 import { CustomError } from "./errors/CustomError.js";
+import { dbInstance } from "./store/db.js";
+import { WithGuildId } from "./types/WithGuildId.js";
+import { ObjectId, WithId } from "mongodb";
 
-const MemberCollectionPerGuild = new Collection<string, IMember[]>();
-const SubguildsPerGuild = new Collection<string, ISubguild[]>();
-
-export const getMembersOfGuild = (guildId: string) => {
-  return MemberCollectionPerGuild.get(guildId);
+const db = () => {
+  if (!dbInstance) throw Error("no database connection / instance missing");
+  return dbInstance;
 };
 
-export const getSubguildsOfGuild = (guildId: string) => {
-  return SubguildsPerGuild.get(guildId);
+const memberCollection = () => {
+  return db().collection<WithGuildId<IMember>>("members");
 };
 
-export const getMember = (guildId: string, memberId: string) => {
-  const member = getMembersOfGuild(guildId)?.find(
-    (member) => member.memberid === memberId
-  );
+const subguildCollection = () => {
+  return db().collection<WithGuildId<ISubguild>>("subguilds");
+};
 
+export const getAllMembers = async (guildId: string) => {
+  return memberCollection().find({ guildId }).toArray();
+};
+
+export const getMember = async (guildId: string, memberId: ObjectId) => {
+  const member = await memberCollection().findOne({ guildId, _id: memberId });
   if (!member) throw new NotFoundError("Could not find entry for member");
 
   return member;
 };
 
-export const getMembersOfSubguild = (guildId: string, subguildId: string) => {
-  const subguild = getSubguild(guildId, subguildId);
-  const members =
-    getMembersOfGuild(guildId)?.filter((member) =>
-      subguild.members.includes(member.memberid)
-    ) ?? [];
-
-  return subguild.members.map((id) => {
-    const m = members.find((member) => member.memberid === id);
-    if (!m)
-      throw new NotFoundError("Could not find entry for all guild members");
-    return m;
-  });
+export const getAllSubguilds = async (guildId: string) => {
+  return subguildCollection().find({ guildId }).toArray();
 };
 
-export const getSubguild = (guildId: string, subguildId: string) => {
-  const subguild = getSubguildsOfGuild(guildId)?.find(
-    (subguild) => subguild.guildId === subguildId
+export const getMembersOfSubguild = async (
+  guildId: string,
+  subguildId: ObjectId
+) => {
+  const subguild = await subguildCollection().findOne(
+    { _id: subguildId, guildId },
+    { projection: { members: 1, _id: 0 } }
   );
+
+  if (!subguild) throw new NotFoundError("Could not find guild entry");
+  if (!subguild.members?.length) {
+    return [];
+  }
+
+  return memberCollection()
+    .find({ _id: { $in: subguild.members } })
+    .toArray();
+};
+
+export const getSubguild = async (guildId: string, subguildId: ObjectId) => {
+  const subguild = await subguildCollection().findOne({
+    guildId,
+    _id: subguildId,
+  });
 
   if (!subguild) throw new NotFoundError("Could not find entry for guild");
 
   return subguild;
 };
 
-export const createMember = (guildId: string, member: ISaveMember) => {
-  const membersOfGuild = getMembersOfGuild(guildId);
-  const memberWithUuid: IMember = {
-    ...member,
-    memberid: generateUuid(),
-  };
-
-  if (!membersOfGuild) {
-    console.log("creating new guild member store for guild", guildId);
-    MemberCollectionPerGuild.set(guildId, [memberWithUuid]);
-  } else {
-    membersOfGuild.push(memberWithUuid);
-  }
-
-  return memberWithUuid;
-};
-
-export const createSubguild = (guildId: string, subguild: ISaveSubguild) => {
-  const subguildsOfGuild = getSubguildsOfGuild(guildId);
-  const subguildWithUuid: ISubguild = {
-    ...subguild,
-    guildId: generateUuid(),
-  };
-
-  if (!subguildsOfGuild) {
-    console.log("creating new subguild store for guild", guildId);
-    SubguildsPerGuild.set(guildId, [subguildWithUuid]);
-  } else {
-    subguildsOfGuild.push(subguildWithUuid);
-  }
-
-  return subguildWithUuid;
-};
-
-export const updateMember = (
+export const createMember = async (
   guildId: string,
-  memberId: string,
-  memberUpdate: Partial<ISaveMember>
+  member: IMember
+): Promise<WithId<IMember>> => {
+  const { insertedId } = await db()
+    .collection<WithGuildId<IMember>>("members")
+    .insertOne({
+      ...member,
+      guildId,
+    });
+  console.log("inserted new user", insertedId);
+
+  return {
+    ...member,
+    _id: insertedId,
+  };
+};
+
+export const createSubguild = async (
+  guildId: string,
+  subguild: ISubguild
+): Promise<WithId<ISubguild>> => {
+  const { insertedId } = await db()
+    .collection<WithGuildId<ISubguild>>("subguilds")
+    .insertOne({
+      ...subguild,
+      guildId,
+    });
+  console.log("created new subguild", insertedId);
+
+  return {
+    ...subguild,
+    _id: insertedId,
+  };
+};
+
+export const updateMember = async (
+  guildId: string,
+  memberId: ObjectId,
+  memberUpdate: Partial<IMember>
 ) => {
-  const member = getMember(guildId, memberId);
+  const member = await memberCollection().findOneAndUpdate(
+    { guildId, _id: memberId },
+    { $set: memberUpdate }
+  );
 
-  (Object.keys(member) as (keyof IMember)[]).forEach((key) => {
-    if (key === "memberid") return;
-
-    // @ts-ignore
-    member[key] = memberUpdate[key] ?? member[key];
-  });
+  if (!member) throw new MemberNotFoundError();
 
   return member;
 };
 
-export const updateGuild = (
+export const updateGuild = async (
   guildId: string,
-  subguildId: string,
-  subguildUpdate: Partial<ISaveSubguild>
+  subguildId: ObjectId,
+  subguildUpdate: Partial<ISubguild>
 ) => {
-  const subguild = getSubguild(guildId, subguildId);
+  const subguild = await subguildCollection().findOneAndUpdate(
+    { guildId, _id: subguildId },
+    { $set: subguildUpdate }
+  );
 
-  (Object.keys(subguild) as (keyof ISubguild)[]).forEach((key) => {
-    if (key === "guildId") return;
-
-    // @ts-ignore
-    subguild[key] = subguildUpdate[key] ?? subguild[key];
-  });
+  if (!subguild) throw new GuildNotFoundError();
 
   return subguild;
 };
 
-export const moveGuildMember = (
+export const moveGuildMember = async (
   guildId: string,
-  newSubguildId: string,
-  memberId: string
+  newSubguildId: ObjectId,
+  memberId: ObjectId
 ) => {
-  const subguilds = getSubguildsOfGuild(guildId);
-  if (!subguilds) throw new NotFoundError("No guilds found for this server");
+  subguildCollection().updateMany(
+    {
+      guildId,
+      members: { $elemMatch: memberId },
+    },
+    { $pull: { members: memberId } }
+  );
+  const newSubguild = await subguildCollection().findOneAndUpdate(
+    { guildId, _id: newSubguildId },
+    { $addToSet: { members: memberId } }
+  );
 
-  const newSubguild = getSubguild(guildId, newSubguildId);
-  if (newSubguild.members.find((id) => id === memberId))
-    throw new CustomError("Member is already part of that guild");
-  newSubguild.members.push(memberId);
-
-  for (const subguild of subguilds) {
-    const index = subguild.members.findIndex((id) => id === memberId);
-
-    if (index === -1) {
-      continue;
-    }
-    delete subguild.members[index];
-    break;
-  }
+  if (!newSubguild) throw new GuildNotFoundError();
 
   return newSubguild;
 };
 
-export const moveAllGuildMembersFrom = (
+export const moveAllGuildMembersFrom = async (
   guildId: string,
-  oldSubguildId: string,
-  newSubguildId: string
+  oldSubguildId: ObjectId,
+  newSubguildId: ObjectId
 ) => {
-  const members = getMembersOfGuild(guildId) ?? [];
-  const oldGuild = getSubguild(guildId, oldSubguildId);
-  const newGuild = getSubguild(guildId, newSubguildId);
+  // get members in source guild
+  const { members = [] } =
+    (await subguildCollection().findOne({ guildId, _id: oldSubguildId })) ?? {};
 
-  members.forEach((member) => {
-    member.guildName = newGuild.guildName;
-  });
+  // add members to target guild
+  const newSubguild = await subguildCollection().findOneAndUpdate(
+    { guildId, _id: newSubguildId },
+    { $push: { members: { $each: members } } }
+  );
 
-  newGuild.members = oldGuild.members.slice();
-  oldGuild.members = [];
+  if (!newSubguild) throw new GuildNotFoundError();
 
-  return newGuild;
+  // delete members from source guild
+  subguildCollection().updateOne(
+    { guildId, _id: oldSubguildId },
+    {
+      $set: { members: [] },
+    }
+  );
+
+  // update guild names of members
+  memberCollection().updateMany(
+    { guildId, _id: { $in: members } },
+    {
+      $set: { guildName: newSubguild.guildName },
+    }
+  );
+
+  return newSubguild;
 };

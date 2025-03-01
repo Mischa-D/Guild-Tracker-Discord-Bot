@@ -2,6 +2,7 @@ import {
   AutocompleteInteraction,
   CacheType,
   ChatInputCommandInteraction,
+  Interaction,
   SlashCommandBuilder,
   SlashCommandSubcommandsOnlyBuilder,
 } from "discord.js";
@@ -14,6 +15,7 @@ export interface ICommand {
     interaction: ChatInputCommandInteraction<CacheType>
   ) => Promise<void>;
   autocomplete?: (
-    interaction: AutocompleteInteraction<CacheType>
+    interaction: AutocompleteInteraction<CacheType>,
+    latestInteraction: Interaction<CacheType>
   ) => Promise<void>;
 }

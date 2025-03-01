@@ -9,6 +9,7 @@ import { getMembersOfSubguild, moveAllGuildMembersFrom } from "../store.js";
 import { CustomError } from "../errors/CustomError.js";
 import { guildAutocomplete } from "../utils/autocomplete/guildAutocomplete.js";
 import { ISubguild } from "../types/IGuild.js";
+import { ObjectId } from "mongodb";
 
 type SubCommandEnum = "moveAll" | "check";
 
@@ -19,7 +20,7 @@ const addMember: ICommand = {
     .addSubcommand((option) =>
       option
         .setName("check")
-        .setDescription("view stats of a member")
+        .setDescription("view members of a guild")
         .addStringOption((option) =>
           option
             .setName("guild")
@@ -56,7 +57,7 @@ const addMember: ICommand = {
         "Could not associate request with a Discord server"
       );
 
-    const subguildId = options.getString("guild", true);
+    const subguildId = new ObjectId(options.getString("guild", true));
     const subCommand = options.getSubcommand() as SubCommandEnum;
 
     let embed: Promise<EmbedBuilder>;
@@ -64,8 +65,8 @@ const addMember: ICommand = {
 
     switch (subCommand) {
       case "moveAll":
-        const targetSubguildId = options.getString("target", true);
-        subguild = moveAllGuildMembersFrom(
+        const targetSubguildId = new ObjectId(options.getString("target", true));
+        subguild = await moveAllGuildMembersFrom(
           guildId,
           subguildId,
           targetSubguildId
@@ -77,7 +78,7 @@ const addMember: ICommand = {
         );
         break;
       case "check":
-        const members = getMembersOfSubguild(guildId, subguildId);
+        const members = await getMembersOfSubguild(guildId, subguildId);
         const subguildName = (members.length ? members[0].guildName : "") ?? "";
         embed = membersListEmbed(subguildName, members);
       default:
@@ -87,7 +88,7 @@ const addMember: ICommand = {
 
     await interaction.reply({ embeds: [await embed] });
   },
-  async autocomplete(interaction) {
+  async autocomplete(interaction, latestInteraction) {
     const { guildId } = interaction;
     const { value } = interaction.options.getFocused(true);
 
@@ -96,7 +97,10 @@ const addMember: ICommand = {
         "Could not associate request with a Discord server"
       );
 
-    interaction.respond(guildAutocomplete(guildId, value)).catch(console.error);
+    const choices = await guildAutocomplete(guildId, value);
+
+    if (interaction !== latestInteraction) return;
+    interaction.respond(choices).catch(console.error);
   },
 };
 

@@ -2,6 +2,7 @@ import { GatewayIntentBits } from "discord-api-types/gateway/v10";
 import { Client } from "discord.js";
 import { handler } from "../utils/command-handler.js";
 import dotenv from "dotenv";
+import { closeDB, connectDB } from "../store/db.js";
 
 dotenv.config();
 
@@ -21,6 +22,7 @@ client.once("ready", () => {
       console.log(guild.name, guildOwner.user.username);
     });
   });
+  connectDB();
 });
 
 client.on("ready", () => {
@@ -28,3 +30,7 @@ client.on("ready", () => {
 });
 
 client.login(process.env.TOKEN);
+
+process.on("exit", () => {
+  closeDB()
+});
