@@ -4,15 +4,11 @@ import {
 } from "discord.js";
 import { memberStatsEmbed } from "../utils/embedutils.js";
 import { ICommand } from "../types/ICommand.js";
-import {
-  getMember,
-  getMembersOfGuild,
-  getSubguildsOfGuild,
-  moveGuildMember,
-  updateMember,
-} from "../store.js";
+import { getMember, moveGuildMember, updateMember } from "../store.js";
 import { CustomError } from "../errors/CustomError.js";
 import { IUpdateMember } from "../types/IMember.js";
+import { guildAutocomplete } from "../utils/autocomplete/guildAutocomplete.js";
+import { memberAutocomplete } from "../utils/autocomplete/memberAutocomplete.js";
 
 type SubCommandEnum = "ban" | "move" | "check" | "warn";
 type AutocompleteOptionsEnum = "name" | "guild";
@@ -134,21 +130,16 @@ const addMember: ICommand = {
         "Could not associate request with a Discord server"
       );
 
-    if (optionName === "name") {
-      const membersOfGuild = getMembersOfGuild(guildId) ?? [];
-      choices = membersOfGuild
-        .filter((member) => member.name.includes(value))
-        .map((member) => ({ name: member.name, value: member.memberid }));
-    }
+    switch (optionName) {
+      case "name":
+        choices = memberAutocomplete(guildId, value);
+        break;
+      case "guild":
+        choices = guildAutocomplete(guildId, value);
+        break;
 
-    if (optionName === "guild") {
-      const subguildsOfGuild = getSubguildsOfGuild(guildId) ?? [];
-      choices = subguildsOfGuild
-        .filter((subguild) => subguild.guildName.includes(value))
-        .map((subguild) => ({
-          name: subguild.guildName,
-          value: subguild.guildId,
-        }));
+      default:
+        break;
     }
 
     interaction.respond(choices).catch(console.error);

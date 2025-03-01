@@ -7,6 +7,7 @@ import {
 import { ICommand } from "../types/ICommand.js";
 import { createMember, createSubguild } from "../store.js";
 import { CustomError } from "../errors/CustomError.js";
+import { guildAutocomplete } from "../utils/autocomplete/guildAutocomplete.js";
 
 type SubCommandEnum = "member" | "guild";
 
@@ -28,7 +29,10 @@ const addMember: ICommand = {
           option.setName("user").setDescription("Name on discord")
         )
         .addStringOption((option) =>
-          option.setName("guild").setDescription("Name of the guild")
+          option
+            .setName("guild")
+            .setDescription("Name of the guild")
+            .setAutocomplete(true)
         )
     )
     .addSubcommand((option) =>
@@ -93,6 +97,17 @@ const addMember: ICommand = {
     await interaction.reply({
       embeds: [await embed],
     });
+  },
+  async autocomplete(interaction) {
+    const { guildId } = interaction;
+    const { value } = interaction.options.getFocused(true);
+
+    if (!guildId)
+      throw new CustomError(
+        "Could not associate request with a Discord server"
+      );
+
+    interaction.respond(guildAutocomplete(guildId, value));
   },
 };
 
