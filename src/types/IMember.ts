@@ -5,7 +5,7 @@ export interface IMember {
   name: string;
   warnings: number;
   isBanned: boolean;
-  isInGuild: boolean;
+  isActive: boolean;
   discordIdentity?: UserMention;
   guildName?: string;
 }

@@ -2,11 +2,17 @@ import { Collection } from "discord.js";
 import { IMember, ISaveMember } from "./types/IMember.js";
 import { v6 as generateUuid } from "uuid";
 import { NotFoundError } from "./errors/NotFoundError.js";
+import { ISaveSubguild, ISubguild } from "./types/IGuild.js";
 
-export const MemberCollectionPerGuild = new Collection<string, IMember[]>();
+const MemberCollectionPerGuild = new Collection<string, IMember[]>();
+const SubguildsPerGuild = new Collection<string, ISubguild[]>();
 
 export const getMembersOfGuild = (guildId: string) => {
   return MemberCollectionPerGuild.get(guildId);
+};
+
+export const getSubguildsOfGuild = (guildId: string) => {
+  return SubguildsPerGuild.get(guildId);
 };
 
 export const getMember = (guildId: string, memberId: string) => {
@@ -14,9 +20,19 @@ export const getMember = (guildId: string, memberId: string) => {
     (member) => member.memberid === memberId
   );
 
-  if (!member) throw new NotFoundError("Could not find entry for that member");
+  if (!member) throw new NotFoundError("Could not find entry for member");
 
   return member;
+};
+
+export const getSubguild = (guildId: string, subguildId: string) => {
+  const subguild = getSubguildsOfGuild(guildId)?.find(
+    (subguild) => subguild.guildId === subguildId
+  );
+
+  if (!subguild) throw new NotFoundError("Could not find entry for guild");
+
+  return subguild;
 };
 
 export const createMember = (guildId: string, member: ISaveMember) => {
@@ -36,6 +52,23 @@ export const createMember = (guildId: string, member: ISaveMember) => {
   return memberWithUuid;
 };
 
+export const createSubguild = (guildId: string, subguild: ISaveSubguild) => {
+  const subguildsOfGuild = getSubguildsOfGuild(guildId);
+  const subguildWithUuid: ISubguild = {
+    ...subguild,
+    guildId: generateUuid(),
+  };
+
+  if (!subguildsOfGuild) {
+    console.log("creating new subguild store for guild", guildId);
+    SubguildsPerGuild.set(guildId, [subguildWithUuid]);
+  } else {
+    subguildsOfGuild.push(subguildWithUuid);
+  }
+
+  return subguildWithUuid;
+};
+
 export const updateMember = (
   guildId: string,
   memberId: string,
@@ -51,4 +84,21 @@ export const updateMember = (
   });
 
   return member;
+};
+
+export const updateGuild = (
+  guildId: string,
+  subguildId: string,
+  subguildUpdate: Partial<ISaveSubguild>
+) => {
+  const subguild = getSubguild(guildId, subguildId);
+
+  (Object.keys(subguild) as (keyof ISubguild)[]).forEach((key) => {
+    if (key === "guildId") return;
+
+    // @ts-ignore
+    subguild[key] = subguildUpdate[key] ?? subguild[key];
+  });
+
+  return subguild;
 };

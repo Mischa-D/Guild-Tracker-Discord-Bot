@@ -1,5 +1,6 @@
 import { EmbedBuilder, UserMention } from "discord.js";
 import { IMember } from "../types/IMember.js";
+import { ISubguild } from "../types/IGuild.js";
 
 export const createEmbedTemplate = () => {
   const embed = new EmbedBuilder()
@@ -32,6 +33,21 @@ export const memberStatsEmbed = (
         name: `is banned from your guild(s)`,
         value: "\u200B",
       });
+
+  return embed;
+};
+
+export const subguildStatsEmbed = (
+  title: string,
+  description: string,
+  subguild: ISubguild
+) => {
+  const { guildName } = subguild;
+  const embed = createEmbedTemplate();
+  embed.setTitle(title);
+  embed.setDescription(`${description} for guild ${guildName}`);
+
+  embed.addFields({ name: "Membercount", value: "0" }); // TODO: real membercount
 
   return embed;
 };
