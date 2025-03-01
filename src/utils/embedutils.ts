@@ -1,6 +1,9 @@
 import { EmbedBuilder } from "discord.js";
 import { IMember } from "../types/IMember.js";
 import { ISubguild } from "../types/IGuild.js";
+import { WARN_THRESHOLD } from "../constants.js";
+
+const MEMBERS_PER_PAGE = 25;
 
 export const createEmbedTemplate = async () => {
   const embed = new EmbedBuilder()
@@ -50,4 +53,41 @@ export const subguildStatsEmbed = async (
   embed.addFields({ name: "Membercount", value: `${subguild.members.length}` }); // TODO: real membercount
 
   return embed;
+};
+
+export const membersListEmbed = async (title: string, members: IMember[]) => {
+  const embed = await createEmbedTemplate();
+  embed.setTitle(title);
+  embed.setDescription(`viewing members of guild`);
+
+  const memberRows = members
+    .slice()
+    .sort((a, b) => b.warnings - a.warnings)
+    .map(
+      (member) =>
+        `${warningBar(member.warnings)}\t${member.name}\s${
+          member.discordIdentity ? `(${member.discordIdentity})` : ""
+        }`
+    );
+
+  const numPages = Math.ceil(memberRows.length / MEMBERS_PER_PAGE);
+  const pages: string[][] = [];
+  for (let page = 0; page < numPages; page++) {
+    pages.push(
+      memberRows.slice(page * MEMBERS_PER_PAGE, (page + 1) * MEMBERS_PER_PAGE)
+    );
+  }
+
+  embed.addFields({
+    name: `${pages[0].length}/${memberRows.length}`,
+    value: memberRows.join("\n"),
+  });
+
+  return embed;
+};
+
+const warningBar = (warnings: number) => {
+  return `${":x:".repeat(warnings)}${":heavy_multiplication_x:".repeat(
+    WARN_THRESHOLD - warnings
+  )}`;
 };

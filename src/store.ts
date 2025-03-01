@@ -26,6 +26,21 @@ export const getMember = (guildId: string, memberId: string) => {
   return member;
 };
 
+export const getMembersOfSubguild = (guildId: string, subguildId: string) => {
+  const subguild = getSubguild(guildId, subguildId);
+  const members =
+    getMembersOfGuild(guildId)?.filter((member) =>
+      subguild.members.includes(member.memberid)
+    ) ?? [];
+
+  return subguild.members.map((id) => {
+    const m = members.find((member) => member.memberid === id);
+    if (!m)
+      throw new NotFoundError("Could not find entry for all guild members");
+    return m;
+  });
+};
+
 export const getSubguild = (guildId: string, subguildId: string) => {
   const subguild = getSubguildsOfGuild(guildId)?.find(
     (subguild) => subguild.guildId === subguildId
@@ -128,4 +143,23 @@ export const moveGuildMember = (
   }
 
   return newSubguild;
+};
+
+export const moveAllGuildMembersFrom = (
+  guildId: string,
+  oldSubguildId: string,
+  newSubguildId: string
+) => {
+  const members = getMembersOfGuild(guildId) ?? [];
+  const oldGuild = getSubguild(guildId, oldSubguildId);
+  const newGuild = getSubguild(guildId, newSubguildId);
+
+  members.forEach((member) => {
+    member.guildName = newGuild.guildName;
+  });
+
+  newGuild.members = oldGuild.members.slice();
+  oldGuild.members = [];
+
+  return newGuild;
 };

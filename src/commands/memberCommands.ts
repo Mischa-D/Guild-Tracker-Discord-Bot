@@ -1,5 +1,6 @@
 import {
   ApplicationCommandOptionChoiceData,
+  EmbedBuilder,
   SlashCommandBuilder,
 } from "discord.js";
 import { memberStatsEmbed } from "../utils/embedutils.js";
@@ -9,8 +10,9 @@ import { CustomError } from "../errors/CustomError.js";
 import { IUpdateMember } from "../types/IMember.js";
 import { guildAutocomplete } from "../utils/autocomplete/guildAutocomplete.js";
 import { memberAutocomplete } from "../utils/autocomplete/memberAutocomplete.js";
+import { WARN_THRESHOLD } from "../constants.js";
 
-type SubCommandEnum = "ban" | "move" | "check" | "warn";
+type SubCommandEnum = "ban" | "unban" | "move" | "check" | "warn" | "unwarn";
 type AutocompleteOptionsEnum = "name" | "guild";
 
 const addMember: ICommand = {
@@ -25,6 +27,18 @@ const addMember: ICommand = {
           option
             .setName("name")
             .setDescription("name of the member to ban")
+            .setAutocomplete(true)
+            .setRequired(true)
+        )
+    )
+    .addSubcommand((option) =>
+      option
+        .setName("unban")
+        .setDescription("revert a ban")
+        .addStringOption((option) =>
+          option
+            .setName("name")
+            .setDescription("name of the member to unban")
             .setAutocomplete(true)
             .setRequired(true)
         )
@@ -71,6 +85,18 @@ const addMember: ICommand = {
             .setAutocomplete(true)
             .setRequired(true)
         )
+    )
+    .addSubcommand((option) =>
+      option
+        .setName("unwarn")
+        .setDescription("decrease the warning count by one")
+        .addStringOption((option) =>
+          option
+            .setName("name")
+            .setDescription("name of the member to unwarn")
+            .setAutocomplete(true)
+            .setRequired(true)
+        )
     ),
 
   async execute(interaction) {
@@ -87,32 +113,48 @@ const addMember: ICommand = {
     const newMember: IUpdateMember = {};
 
     switch (subCommand) {
-      case "ban":
+      case "ban": {
         newMember.isBanned = true;
         break;
-      case "move":
+      }
+      case "unban": {
+        newMember.isBanned = false;
+        break;
+      }
+      case "move": {
         const subguildId = options.getString("guild", true);
         const subguild = moveGuildMember(guildId, subguildId, memberid);
         newMember.guildName = subguild.guildName;
         break;
-      case "warn":
+      }
+      case "warn": {
         const { warnings = 0, isBanned } = getMember(guildId, memberid) ?? {};
-        if (!isBanned) newMember.warnings = warnings + 1;
+        if (!isBanned)
+          newMember.warnings = Math.min(warnings + 1, WARN_THRESHOLD);
         break;
+      }
+      case "unwarn": {
+        const { warnings = 0, isBanned } = getMember(guildId, memberid) ?? {};
+        if (!isBanned) newMember.warnings = Math.max(warnings - 1, 0);
+        break;
+      }
       default:
         break;
     }
 
-    const updatedMember =
-      subCommand === "check"
-        ? getMember(guildId, memberid)
-        : updateMember(guildId, memberid, newMember);
+    let embed: EmbedBuilder;
+    if (subCommand === "check") {
+      const member = getMember(guildId, memberid);
+      embed = await memberStatsEmbed(`${member.name}`, "Showing Entry", member);
+    } else {
+      const updatedMember = updateMember(guildId, memberid, newMember);
+      embed = await memberStatsEmbed(
+        "Member Updated",
+        "Updated Entry",
+        updatedMember
+      );
+    }
 
-    const embed = await memberStatsEmbed(
-      "Member Updated",
-      "Updated Entry",
-      updatedMember
-    );
     await interaction.reply({ embeds: [embed] });
   },
   async autocomplete(interaction) {
