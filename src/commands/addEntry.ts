@@ -62,13 +62,16 @@ const addMember: ICommand = {
     let embed: Promise<EmbedBuilder>;
     const name = options.getString("name", true);
     const discordIdentity = options.getUser("user")?.toString();
-    const subguildName = options.getString("guild")
-      ? getSubguildName(guildId, new ObjectId(options.getString("guild")!))
+    const subguildId = options.getString("guild")
+      ? new ObjectId(options.getString("guild")!)
       : undefined;
     const subCommand = options.getSubcommand() as SubCommandEnum;
 
     switch (subCommand) {
       case "member":
+        const subguildName = subguildId
+          ? getSubguildName(guildId, subguildId)
+          : undefined;
         const newMember = await createMember(guildId, {
           name,
           warnings: 0,
@@ -76,7 +79,7 @@ const addMember: ICommand = {
           isBanned: false,
           discordIdentity,
           guildName: await subguildName,
-        });
+        }, subguildId);
 
         embed = memberStatsEmbed(
           "New Member Added",

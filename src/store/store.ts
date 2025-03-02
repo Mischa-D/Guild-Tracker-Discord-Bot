@@ -71,15 +71,25 @@ export const getSubguild = async (guildId: string, subguildId: ObjectId) => {
 
 export const createMember = async (
   guildId: string,
-  member: IMember
+  member: IMember,
+  subguildId?: ObjectId
 ): Promise<WithId<IMember>> => {
-  const { insertedId } = await db()
-    .collection<WithGuildId<IMember>>("members")
-    .insertOne({
-      ...member,
-      guildId,
-    });
+  const { insertedId } = await memberCollection().insertOne({
+    ...member,
+    guildId,
+  });
   console.log("inserted new user", insertedId);
+
+  if (subguildId) {
+    const subguild = await subguildCollection().findOneAndUpdate(
+      {
+        guildId,
+        _id: subguildId,
+      },
+      { $addToSet: { members: insertedId } }
+    );
+    console.log("added user to guild", subguildId);
+  }
 
   return {
     ...member,
@@ -91,12 +101,10 @@ export const createSubguild = async (
   guildId: string,
   subguild: ISubguild
 ): Promise<WithId<ISubguild>> => {
-  const { insertedId } = await db()
-    .collection<WithGuildId<ISubguild>>("subguilds")
-    .insertOne({
-      ...subguild,
-      guildId,
-    });
+  const { insertedId } = await subguildCollection().insertOne({
+    ...subguild,
+    guildId,
+  });
   console.log("created new subguild", insertedId);
 
   return {
