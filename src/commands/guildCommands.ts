@@ -10,6 +10,7 @@ import { CustomError } from "../errors/CustomError.js";
 import { guildAutocomplete } from "../utils/autocomplete/guildAutocomplete.js";
 import { ISubguild } from "../types/IGuild.js";
 import { ObjectId } from "mongodb";
+import { autocompleteInteractionCollection } from "../utils/command-handler.js";
 
 type SubCommandEnum = "moveAll" | "check";
 
@@ -52,11 +53,6 @@ const addMember: ICommand = {
   async execute(interaction) {
     const { guildId, options } = interaction;
 
-    if (!guildId)
-      throw new CustomError(
-        "Could not associate request with a Discord server"
-      );
-
     const subguildId = new ObjectId(options.getString("guild", true));
     const subCommand = options.getSubcommand() as SubCommandEnum;
 
@@ -65,7 +61,9 @@ const addMember: ICommand = {
 
     switch (subCommand) {
       case "moveAll":
-        const targetSubguildId = new ObjectId(options.getString("target", true));
+        const targetSubguildId = new ObjectId(
+          options.getString("target", true)
+        );
         subguild = await moveAllGuildMembersFrom(
           guildId,
           subguildId,
@@ -88,7 +86,7 @@ const addMember: ICommand = {
 
     await interaction.reply({ embeds: [await embed] });
   },
-  async autocomplete(interaction, latestInteraction) {
+  async autocomplete(interaction) {
     const { guildId } = interaction;
     const { value } = interaction.options.getFocused(true);
 
@@ -99,8 +97,10 @@ const addMember: ICommand = {
 
     const choices = await guildAutocomplete(guildId, value);
 
-    if (interaction !== latestInteraction) return;
-    interaction.respond(choices).catch(console.error);
+    const latestInteraction = autocompleteInteractionCollection.get(guildId);
+    autocompleteInteractionCollection.set(guildId, null);
+    latestInteraction &&
+      latestInteraction.respond(choices).catch(console.error);
   },
 };
 

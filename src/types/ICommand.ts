@@ -2,20 +2,19 @@ import {
   AutocompleteInteraction,
   CacheType,
   ChatInputCommandInteraction,
-  Interaction,
   SlashCommandBuilder,
   SlashCommandSubcommandsOnlyBuilder,
 } from "discord.js";
+import { WithGuildId } from "./WithGuildId.js";
 
 export interface ICommand {
   data:
     | Omit<SlashCommandBuilder, "addSubcommand" | "addSubcommandGroup">
     | SlashCommandSubcommandsOnlyBuilder;
   execute: (
-    interaction: ChatInputCommandInteraction<CacheType>
+    interaction: WithGuildId<ChatInputCommandInteraction<CacheType>>
   ) => Promise<void>;
   autocomplete?: (
-    interaction: AutocompleteInteraction<CacheType>,
-    latestInteraction: Interaction<CacheType>
+    interaction: WithGuildId<AutocompleteInteraction<CacheType>>
   ) => Promise<void>;
 }

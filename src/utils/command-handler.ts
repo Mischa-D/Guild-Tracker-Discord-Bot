@@ -1,13 +1,30 @@
-import { CacheType, Client, Collection, Interaction } from "discord.js";
+import {
+  AutocompleteInteraction,
+  Client,
+  Collection,
+} from "discord.js";
 import { getFiles } from "./get-command-files.js";
 import { ICommand } from "../types/ICommand.js";
 import { replyEphemeral } from "./reply.js";
 import { CustomError } from "../errors/CustomError.js";
 import { COMMANDS_FOLDER } from "../constants.js";
+import { WithGuildId } from "../types/WithGuildId.js";
+
+export const autocompleteInteractionCollection = new Collection<
+  string,
+  AutocompleteInteraction | null
+>();
+
+const hasGuildId = <T extends object>(
+  interaction: T
+): interaction is WithGuildId<T> => {
+  if (!("guildId" in interaction) || !interaction.guildId)
+    throw new CustomError("Could not associate request with a Discord server");
+  return true;
+};
 
 export const handler = (client: Client) => {
   const commands = new Collection<string, ICommand>();
-  let latestInteraction: Interaction<CacheType>;
 
   const commandFiles = getFiles(COMMANDS_FOLDER);
   console.log(commandFiles);
@@ -22,12 +39,13 @@ export const handler = (client: Client) => {
   client.on("interactionCreate", async (interaction) => {
     if (!interaction.isChatInputCommand() && !interaction.isAutocomplete())
       return;
+    if (!hasGuildId(interaction)) return;
 
-    latestInteraction = interaction;
     const command = commands.get(interaction.commandName);
 
     if (interaction.isAutocomplete()) {
-      await command?.autocomplete?.(interaction, latestInteraction);
+      autocompleteInteractionCollection.set(interaction.guildId, interaction);
+      await command?.autocomplete?.(interaction);
       return;
     }
 
@@ -44,7 +62,11 @@ export const handler = (client: Client) => {
     } catch (error) {
       console.error(error);
       if (error instanceof CustomError) {
-        await replyEphemeral(interaction, error.message);
+        try {
+          await replyEphemeral(interaction, error.message);
+        } catch (error) {
+          console.error("sending error message failed with error", error);
+        }
         return;
       }
       await replyEphemeral(interaction, "Uh Oh! Something went wrong.");

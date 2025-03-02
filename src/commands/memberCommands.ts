@@ -12,6 +12,7 @@ import { guildAutocomplete } from "../utils/autocomplete/guildAutocomplete.js";
 import { memberAutocomplete } from "../utils/autocomplete/memberAutocomplete.js";
 import { WARN_THRESHOLD } from "../constants.js";
 import { ObjectId } from "mongodb";
+import { autocompleteInteractionCollection } from "../utils/command-handler.js";
 
 type SubCommandEnum = "ban" | "unban" | "move" | "check" | "warn" | "unwarn";
 type AutocompleteOptionsEnum = "name" | "guild";
@@ -104,11 +105,6 @@ const addMember: ICommand = {
   async execute(interaction) {
     const { guildId, options } = interaction;
 
-    if (!guildId)
-      throw new CustomError(
-        "Could not associate request with a Discord server"
-      );
-
     const memberid = new ObjectId(options.getString("name", true));
     const subCommand = options.getSubcommand() as SubCommandEnum;
 
@@ -161,7 +157,7 @@ const addMember: ICommand = {
 
     await interaction.reply({ embeds: [embed] });
   },
-  async autocomplete(interaction, latestInteraction) {
+  async autocomplete(interaction) {
     const { guildId } = interaction;
     const { name: optionName, value } = interaction.options.getFocused(
       true
@@ -189,11 +185,11 @@ const addMember: ICommand = {
     }
 
     console.log(choices);
-    if (interaction !== latestInteraction) {
-      console.log("caught");
-      return;
-    }
-    interaction.respond(choices).catch(console.error);
+
+    const latestInteraction = autocompleteInteractionCollection.get(guildId);
+    autocompleteInteractionCollection.set(guildId, null);
+    latestInteraction &&
+      latestInteraction.respond(choices).catch(console.error);
   },
 };
 
