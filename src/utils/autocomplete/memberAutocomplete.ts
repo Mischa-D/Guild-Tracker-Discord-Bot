@@ -1,5 +1,5 @@
 import { ApplicationCommandOptionChoiceData } from "discord.js";
-import { getAllMembers } from "../../store.js";
+import { getAllMembers } from "../../store/store.js";
 
 export const memberAutocomplete = async (
   guildId: string,

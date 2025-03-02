@@ -5,7 +5,11 @@ import {
   subguildStatsEmbed,
 } from "../utils/embedutils.js";
 import { ICommand } from "../types/ICommand.js";
-import { createMember, createSubguild, getSubguildName } from "../store.js";
+import {
+  createMember,
+  createSubguild,
+  getSubguildName,
+} from "../store/store.js";
 import { CustomError } from "../errors/CustomError.js";
 import { guildAutocomplete } from "../utils/autocomplete/guildAutocomplete.js";
 import { ObjectId } from "mongodb";

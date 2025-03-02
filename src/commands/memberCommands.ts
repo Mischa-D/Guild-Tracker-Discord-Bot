@@ -5,7 +5,7 @@ import {
 } from "discord.js";
 import { memberStatsEmbed } from "../utils/embedutils.js";
 import { ICommand } from "../types/ICommand.js";
-import { getMember, moveGuildMember, updateMember } from "../store.js";
+import { getMember, moveGuildMember, updateMember } from "../store/store.js";
 import { CustomError } from "../errors/CustomError.js";
 import { IUpdateMember } from "../types/IMember.js";
 import { guildAutocomplete } from "../utils/autocomplete/guildAutocomplete.js";

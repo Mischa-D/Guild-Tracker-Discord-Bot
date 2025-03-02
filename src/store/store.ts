@@ -1,11 +1,11 @@
-import { IMember } from "./types/IMember.js";
+import { IMember } from "../types/IMember.js";
 import {
   GuildNotFoundError,
   MemberNotFoundError,
-} from "./errors/NotFoundError.js";
-import { ISubguild } from "./types/IGuild.js";
-import { dbInstance } from "./store/db.js";
-import { WithGuildId } from "./types/WithGuildId.js";
+} from "../errors/NotFoundError.js";
+import { ISubguild } from "../types/IGuild.js";
+import { dbInstance } from "./db.js";
+import { WithGuildId } from "../types/WithGuildId.js";
 import { ObjectId, WithId } from "mongodb";
 
 const db = () => {

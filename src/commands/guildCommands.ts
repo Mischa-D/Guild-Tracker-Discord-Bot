@@ -5,7 +5,10 @@ import {
   subguildStatsEmbed,
 } from "../utils/embedutils.js";
 import { ICommand } from "../types/ICommand.js";
-import { getMembersOfSubguild, moveAllGuildMembersFrom } from "../store.js";
+import {
+  getMembersOfSubguild,
+  moveAllGuildMembersFrom,
+} from "../store/store.js";
 import { CustomError } from "../errors/CustomError.js";
 import { guildAutocomplete } from "../utils/autocomplete/guildAutocomplete.js";
 import { ISubguild } from "../types/IGuild.js";
