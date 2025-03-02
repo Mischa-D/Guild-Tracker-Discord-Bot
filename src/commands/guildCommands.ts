@@ -76,8 +76,10 @@ const addMember: ICommand = {
         );
         break;
       case "check":
-        const members = await getMembersOfSubguild(guildId, subguildId);
-        const subguildName = (members.length ? members[0].guildName : "") ?? "";
+        const { members, subguildName } = await getMembersOfSubguild(
+          guildId,
+          subguildId
+        );
         embed = membersListEmbed(subguildName, members);
       default:
         embed = createEmbedTemplate();

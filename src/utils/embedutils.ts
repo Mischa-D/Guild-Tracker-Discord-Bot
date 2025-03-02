@@ -59,6 +59,11 @@ export const membersListEmbed = async (title: string, members: IMember[]) => {
   const embed = await createEmbedTemplate();
   embed.setTitle(title);
   embed.setDescription(`viewing members of guild`);
+  if (!members.length)
+    return embed.setFields({
+      name: "This guild has no members",
+      value: "\u200B",
+    });
 
   const memberRows = members
     .slice()

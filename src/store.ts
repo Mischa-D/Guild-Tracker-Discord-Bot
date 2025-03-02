@@ -2,10 +2,8 @@ import { IMember } from "./types/IMember.js";
 import {
   GuildNotFoundError,
   MemberNotFoundError,
-  NotFoundError,
 } from "./errors/NotFoundError.js";
 import { ISubguild } from "./types/IGuild.js";
-import { CustomError } from "./errors/CustomError.js";
 import { dbInstance } from "./store/db.js";
 import { WithGuildId } from "./types/WithGuildId.js";
 import { ObjectId, WithId } from "mongodb";
@@ -29,7 +27,7 @@ export const getAllMembers = async (guildId: string) => {
 
 export const getMember = async (guildId: string, memberId: ObjectId) => {
   const member = await memberCollection().findOne({ guildId, _id: memberId });
-  if (!member) throw new NotFoundError("Could not find entry for member");
+  if (!member) throw new MemberNotFoundError();
 
   return member;
 };
@@ -41,20 +39,23 @@ export const getAllSubguilds = async (guildId: string) => {
 export const getMembersOfSubguild = async (
   guildId: string,
   subguildId: ObjectId
-) => {
+): Promise<{ subguildName: string; members: IMember[] }> => {
   const subguild = await subguildCollection().findOne(
     { _id: subguildId, guildId },
-    { projection: { members: 1, _id: 0 } }
+    { projection: { members: 1, guildName: 1, _id: 0 } }
   );
 
-  if (!subguild) throw new NotFoundError("Could not find guild entry");
+  if (!subguild) throw new GuildNotFoundError();
   if (!subguild.members?.length) {
-    return [];
+    return { subguildName: subguild.guildName, members: [] };
   }
 
-  return memberCollection()
-    .find({ _id: { $in: subguild.members } })
-    .toArray();
+  return {
+    subguildName: subguild.guildName,
+    members: await memberCollection()
+      .find({ _id: { $in: subguild.members } })
+      .toArray(),
+  };
 };
 
 export const getSubguild = async (guildId: string, subguildId: ObjectId) => {
@@ -63,7 +64,7 @@ export const getSubguild = async (guildId: string, subguildId: ObjectId) => {
     _id: subguildId,
   });
 
-  if (!subguild) throw new NotFoundError("Could not find entry for guild");
+  if (!subguild) throw new GuildNotFoundError();
 
   return subguild;
 };
@@ -161,6 +162,7 @@ export const moveAllGuildMembersFrom = async (
   oldSubguildId: ObjectId,
   newSubguildId: ObjectId
 ) => {
+  console.log("executing move from", oldSubguildId, "to", newSubguildId);
   // get members in source guild
   const { members = [] } =
     (await subguildCollection().findOne({ guildId, _id: oldSubguildId })) ?? {};
