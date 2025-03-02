@@ -132,7 +132,7 @@ const addMember: ICommand = {
       }
       case "move": {
         const subguildId = new ObjectId(options.getString("guild", true));
-        member = await moveGuildMember(guildId, subguildId, memberid);
+        member = await moveGuildMember(guildId, memberid, subguildId);
         break;
       }
       case "warn": {

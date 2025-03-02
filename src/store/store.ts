@@ -6,7 +6,7 @@ import {
 import { ISubguild, ISubguildFull } from "../types/IGuild.js";
 import { dbInstance } from "./db.js";
 import { WithGuildId } from "../types/WithGuildId.js";
-import { ObjectId, WithId } from "mongodb";
+import { ObjectId } from "mongodb";
 import { WARN_THRESHOLD } from "../constants.js";
 import { UserMention } from "discord.js";
 
@@ -141,11 +141,25 @@ export const modifyWarnings = async (
 ) => {
   const member = await memberCollection().findOneAndUpdate(
     { guildId, _id: memberId },
-    {
-      $inc: { warnings: modifyAmount },
-      $min: { warnings: 0 },
-      $max: { warnings: WARN_THRESHOLD },
-    },
+    [
+      {
+        $set: {
+          warnings: {
+            $cond: {
+              if: { $lte: ["$warnings", WARN_THRESHOLD - modifyAmount] }, // Check if field + modify =< max
+              then: {
+                $cond: {
+                  if: { $gte: ["$warnings", 0 - modifyAmount] }, // Check if field - |modify| > min
+                  then: { $add: ["$warnings", modifyAmount] }, // Increment by modifyAmount
+                  else: "$warnings", // Keep the same value if min is reached
+                },
+              },
+              else: "$warnings", // Keep the same value if max is reached
+            },
+          },
+        },
+      },
+    ],
     { returnDocument: "after" }
   );
 
@@ -171,7 +185,7 @@ export const updateGuild = async (
 };
 
 const moveMemberFrom = async (guildId: string, memberId: ObjectId) => {
-  subguildCollection().updateMany(
+  return subguildCollection().updateMany(
     {
       guildId,
       members: memberId,
