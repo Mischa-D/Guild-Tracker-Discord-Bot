@@ -45,7 +45,8 @@ const addMember: ICommand = {
             .setDescription("Name of the guild")
             .setRequired(true)
         )
-    ),
+    )
+    .setDefaultMemberPermissions("0"),
   async execute(interaction) {
     const { guildId, options } = interaction;
     if (!guildId)

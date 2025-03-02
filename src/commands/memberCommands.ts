@@ -98,7 +98,8 @@ const addMember: ICommand = {
             .setAutocomplete(true)
             .setRequired(true)
         )
-    ),
+    )
+    .setDefaultMemberPermissions("0"),
 
   async execute(interaction) {
     const { guildId, options } = interaction;
