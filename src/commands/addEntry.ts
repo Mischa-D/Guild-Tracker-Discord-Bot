@@ -116,7 +116,7 @@ const addMember: ICommand = {
       );
 
     const choices = await guildAutocomplete(guildId, value);
-    interaction.respond(choices).catch(console.error);
+    await interaction.respond(choices).catch(console.error);
   },
 };
 

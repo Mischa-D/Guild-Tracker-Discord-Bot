@@ -4,7 +4,7 @@ export const replyEphemeral = async (
   interaction: ChatInputCommandInteraction,
   message: string
 ) => {
-  interaction.reply({
+  return await interaction.reply({
     content: message,
     ephemeral: true,
   });

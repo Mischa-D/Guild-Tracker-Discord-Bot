@@ -184,12 +184,10 @@ const addMember: ICommand = {
         break;
     }
 
-    console.log(choices);
-
     const latestInteraction = autocompleteInteractionCollection.get(guildId);
     autocompleteInteractionCollection.set(guildId, null);
     latestInteraction &&
-      latestInteraction.respond(choices).catch(console.error);
+      await latestInteraction.respond(choices).catch(console.error);
   },
 };
 
