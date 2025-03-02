@@ -191,3 +191,17 @@ export const moveAllGuildMembersFrom = async (
 
   return newSubguild;
 };
+
+export const getSubguildName = async (
+  guildId: string,
+  subguildId: ObjectId
+) => {
+  const subguild = await subguildCollection().findOne(
+    { guildId, _id: subguildId },
+    { projection: { guildName: 1, _id: 0 } }
+  );
+
+  if (!subguild) throw new GuildNotFoundError();
+
+  return subguild.guildName;
+};

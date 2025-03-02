@@ -7,7 +7,6 @@ export const guildAutocomplete = async (
 ): Promise<ApplicationCommandOptionChoiceData[]> => {
   const subguildsOfGuild = (await getAllSubguilds(guildId)) ?? [];
   
-  console.log(subguildsOfGuild)
   const choices = subguildsOfGuild
     .filter((subguild) => subguild.guildName.includes(value))
     .map((subguild) => ({
@@ -15,6 +14,5 @@ export const guildAutocomplete = async (
       value: subguild._id.toString(),
     }));
 
-  console.log(choices);
   return choices;
 };

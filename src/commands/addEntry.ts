@@ -5,9 +5,10 @@ import {
   subguildStatsEmbed,
 } from "../utils/embedutils.js";
 import { ICommand } from "../types/ICommand.js";
-import { createMember, createSubguild } from "../store.js";
+import { createMember, createSubguild, getSubguildName } from "../store.js";
 import { CustomError } from "../errors/CustomError.js";
 import { guildAutocomplete } from "../utils/autocomplete/guildAutocomplete.js";
+import { ObjectId } from "mongodb";
 
 type SubCommandEnum = "member" | "guild";
 
@@ -57,7 +58,9 @@ const addMember: ICommand = {
     let embed: Promise<EmbedBuilder>;
     const name = options.getString("name", true);
     const discordIdentity = options.getUser("user")?.toString();
-    const guildName = options.getString("guild") ?? undefined;
+    const subguildName = options.getString("guild")
+      ? getSubguildName(guildId, new ObjectId(options.getString("guild")!))
+      : undefined;
     const subCommand = options.getSubcommand() as SubCommandEnum;
 
     switch (subCommand) {
@@ -68,7 +71,7 @@ const addMember: ICommand = {
           isActive: true,
           isBanned: false,
           discordIdentity,
-          guildName,
+          guildName: await subguildName,
         });
 
         embed = memberStatsEmbed(
