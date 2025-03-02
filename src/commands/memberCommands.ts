@@ -16,7 +16,6 @@ import { CustomError } from "../errors/CustomError.js";
 import { IMember, IUpdateMember } from "../types/IMember.js";
 import { guildAutocomplete } from "../utils/autocomplete/guildAutocomplete.js";
 import { memberAutocomplete } from "../utils/autocomplete/memberAutocomplete.js";
-import { WARN_THRESHOLD } from "../constants.js";
 import { ObjectId } from "mongodb";
 import { autocompleteInteractionCollection } from "../utils/command-handler.js";
 
@@ -133,9 +132,7 @@ const addMember: ICommand = {
       }
       case "move": {
         const subguildId = new ObjectId(options.getString("guild", true));
-        const subguild = await moveGuildMember(guildId, subguildId, memberid);
-        newMember.guildName = subguild.guildName;
-        member = await updateMember(guildId, memberid, newMember);
+        member = await moveGuildMember(guildId, subguildId, memberid);
         break;
       }
       case "warn": {

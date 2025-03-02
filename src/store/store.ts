@@ -3,11 +3,12 @@ import {
   GuildNotFoundError,
   MemberNotFoundError,
 } from "../errors/NotFoundError.js";
-import { ISubguild } from "../types/IGuild.js";
+import { ISubguild, ISubguildFull } from "../types/IGuild.js";
 import { dbInstance } from "./db.js";
 import { WithGuildId } from "../types/WithGuildId.js";
 import { ObjectId, WithId } from "mongodb";
 import { WARN_THRESHOLD } from "../constants.js";
+import { UserMention } from "discord.js";
 
 const db = () => {
   if (!dbInstance) throw Error("no database connection / instance missing");
@@ -37,54 +38,60 @@ export const getAllSubguilds = async (guildId: string) => {
   return subguildCollection().find({ guildId }).toArray();
 };
 
-export const getMembersOfSubguild = async (
+export const getSubguild = async (
   guildId: string,
   subguildId: ObjectId
-): Promise<{ subguildName: string; members: IMember[] }> => {
-  const subguild = await subguildCollection().findOne(
-    { _id: subguildId, guildId },
-    { projection: { members: 1, guildName: 1, _id: 0 } }
-  );
+): Promise<ISubguildFull> => {
+  const subguild = await subguildCollection()
+    .aggregate<ISubguildFull>([
+      {
+        $match: {
+          _id: subguildId,
+          guildId,
+        },
+      },
+      {
+        $lookup: {
+          from: "members",
+          foreignField: "_id",
+          localField: "members",
+          as: "members",
+        },
+      },
+    ])
+    .next();
 
   if (!subguild) throw new GuildNotFoundError();
-  if (!subguild.members?.length) {
-    return { subguildName: subguild.guildName, members: [] };
-  }
-
-  const members = await memberCollection()
-    .find({ guildId, _id: { $in: subguild.members } })
-    .toArray();
-
-  return {
-    subguildName: subguild.guildName,
-    members,
-  };
-};
-
-export const getSubguild = async (guildId: string, subguildId: ObjectId) => {
-  const subguild = await subguildCollection().findOne({
-    guildId,
-    _id: subguildId,
-  });
-
-  if (!subguild) throw new GuildNotFoundError();
-
   return subguild;
 };
 
 export const createMember = async (
   guildId: string,
-  member: IMember,
+  name: string,
+  discordIdentity?: UserMention,
   subguildId?: ObjectId
-): Promise<WithId<IMember>> => {
-  const { insertedId } = await memberCollection().insertOne({
-    ...member,
+): Promise<IMember> => {
+  const { guildName } =
+    (await subguildCollection().findOne({
+      guildId,
+      _id: subguildId,
+    })) ?? {};
+
+  const member = {
+    name,
+    warnings: 0,
+    isActive: true,
+    isBanned: false,
+    discordIdentity,
+    guildName,
     guildId,
-  });
+  };
+
+  const { insertedId } = await memberCollection().insertOne(member);
   console.log("inserted new user", insertedId);
 
   if (subguildId) {
-    const subguild = await subguildCollection().findOneAndUpdate(
+    subguildCollection().findOneAndUpdate(
       {
         guildId,
         _id: subguildId,
@@ -95,26 +102,20 @@ export const createMember = async (
     console.log("added user to guild", subguildId);
   }
 
-  return {
-    ...member,
-    _id: insertedId,
-  };
+  return member;
 };
 
 export const createSubguild = async (
   guildId: string,
   subguild: ISubguild
-): Promise<WithId<ISubguild>> => {
+): Promise<ISubguild> => {
   const { insertedId } = await subguildCollection().insertOne({
     ...subguild,
     guildId,
   });
   console.log("created new subguild", insertedId);
 
-  return {
-    ...subguild,
-    _id: insertedId,
-  };
+  return subguild;
 };
 
 export const updateMember = async (
@@ -199,7 +200,11 @@ export const moveGuildMember = async (
 
   if (!newSubguild) throw new GuildNotFoundError();
 
-  return newSubguild;
+  const member = await updateMember(guildId, memberId, {
+    guildName: newSubguild.guildName,
+  });
+
+  return member;
 };
 
 export const moveAllGuildMembersFrom = async (
@@ -238,18 +243,4 @@ export const moveAllGuildMembersFrom = async (
   );
 
   return newSubguild;
-};
-
-export const getSubguildName = async (
-  guildId: string,
-  subguildId: ObjectId
-) => {
-  const subguild = await subguildCollection().findOne(
-    { guildId, _id: subguildId },
-    { projection: { guildName: 1, _id: 0 } }
-  );
-
-  if (!subguild) throw new GuildNotFoundError();
-
-  return subguild.guildName;
 };

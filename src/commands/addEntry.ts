@@ -5,11 +5,7 @@ import {
   subguildStatsEmbed,
 } from "../utils/embedutils.js";
 import { ICommand } from "../types/ICommand.js";
-import {
-  createMember,
-  createSubguild,
-  getSubguildName,
-} from "../store/store.js";
+import { createMember, createSubguild } from "../store/store.js";
 import { CustomError } from "../errors/CustomError.js";
 import { guildAutocomplete } from "../utils/autocomplete/guildAutocomplete.js";
 import { ObjectId } from "mongodb";
@@ -70,19 +66,10 @@ const addMember: ICommand = {
 
     switch (subCommand) {
       case "member":
-        const subguildName = subguildId
-          ? getSubguildName(guildId, subguildId)
-          : undefined;
         const newMember = await createMember(
           guildId,
-          {
-            name,
-            warnings: 0,
-            isActive: true,
-            isBanned: false,
-            discordIdentity,
-            guildName: await subguildName,
-          },
+          name,
+          discordIdentity,
           subguildId
         );
 

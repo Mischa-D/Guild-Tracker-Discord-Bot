@@ -5,10 +5,7 @@ import {
   subguildStatsEmbed,
 } from "../utils/embedutils.js";
 import { ICommand } from "../types/ICommand.js";
-import {
-  getMembersOfSubguild,
-  moveAllGuildMembersFrom,
-} from "../store/store.js";
+import { getSubguild, moveAllGuildMembersFrom } from "../store/store.js";
 import { CustomError } from "../errors/CustomError.js";
 import { guildAutocomplete } from "../utils/autocomplete/guildAutocomplete.js";
 import { ISubguild } from "../types/IGuild.js";
@@ -80,11 +77,11 @@ const addMember: ICommand = {
         );
         break;
       case "check":
-        const { members, subguildName } = await getMembersOfSubguild(
+        const { members, guildName } = await getSubguild(
           guildId,
           subguildId
         );
-        embed = membersListEmbed(subguildName, members);
+        embed = membersListEmbed(guildName, members);
         break;
       default:
         embed = createEmbedTemplate();
@@ -107,7 +104,7 @@ const addMember: ICommand = {
     const latestInteraction = autocompleteInteractionCollection.get(guildId);
     autocompleteInteractionCollection.set(guildId, null);
     latestInteraction &&
-      await latestInteraction.respond(choices).catch(console.error);
+      (await latestInteraction.respond(choices).catch(console.error));
   },
 };
 
