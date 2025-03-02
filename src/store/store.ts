@@ -7,8 +7,9 @@ import { ISubguild, ISubguildFull } from "../types/IGuild.js";
 import { dbInstance } from "./db.js";
 import { WithGuildId } from "../types/WithGuildId.js";
 import { ObjectId } from "mongodb";
-import { WARN_THRESHOLD } from "../constants.js";
+import { DEFAULT_WARN_THRESHOLD } from "../constants.js";
 import { UserMention } from "discord.js";
+import { getSettings } from "./settings.js";
 
 const db = () => {
   if (!dbInstance) throw Error("no database connection / instance missing");
@@ -139,6 +140,7 @@ export const modifyWarnings = async (
   memberId: ObjectId,
   modifyAmount: number
 ) => {
+  const { warnLimit } = await getSettings(guildId);
   const member = await memberCollection().findOneAndUpdate(
     { guildId, _id: memberId },
     [
@@ -146,7 +148,12 @@ export const modifyWarnings = async (
         $set: {
           warnings: {
             $cond: {
-              if: { $lte: ["$warnings", WARN_THRESHOLD - modifyAmount] }, // Check if field + modify =< max
+              if: {
+                $lte: [
+                  "$warnings",
+                  (warnLimit ?? DEFAULT_WARN_THRESHOLD) - modifyAmount,
+                ],
+              }, // Check if field + modify =< max
               then: {
                 $cond: {
                   if: { $gte: ["$warnings", 0 - modifyAmount] }, // Check if field - |modify| > min

@@ -1,7 +1,8 @@
 import { EmbedBuilder } from "discord.js";
 import { IMember } from "../types/IMember.js";
 import { ISubguild } from "../types/IGuild.js";
-import { WARN_THRESHOLD } from "../constants.js";
+import { DEFAULT_WARN_THRESHOLD } from "../constants.js";
+import { ISettings } from "../types/ISettings.js";
 
 const MEMBERS_PER_PAGE = 100;
 
@@ -13,6 +14,24 @@ export const createEmbedTemplate = async () => {
       text: "by Lagopus#4584",
       iconURL: "https://i.imgur.com/mQ4hMwD.jpeg",
     });
+
+  return embed;
+};
+
+export const settingsEmbed = async (
+  title: string,
+  description: string,
+  settings: ISettings
+) => {
+  const { warnLimit } = settings;
+  const embed = await createEmbedTemplate();
+  embed.setTitle(title);
+  embed.setDescription(description);
+
+  embed.addFields({
+    name: `max Number of Warnings: ${warnLimit}`,
+    value: "\u200B",
+  });
 
   return embed;
 };
@@ -50,15 +69,19 @@ export const subguildStatsEmbed = async (
   embed.setTitle(title);
   embed.setDescription(`${description} for Guild ${guildName}`);
 
-  embed.addFields({ name: "Membercount", value: `${subguild.members.length}` }); // TODO: real membercount
+  embed.addFields({ name: "Membercount", value: `${subguild.members.length}` });
 
   return embed;
 };
 
-export const membersListEmbed = async (title: string, members: IMember[]) => {
+export const membersListEmbed = async (
+  title: string,
+  members: IMember[],
+  warnLimit?: number
+) => {
   const embed = await createEmbedTemplate();
   embed.setTitle(title);
-  embed.setDescription(`viewing members of guild`);
+  embed.setDescription(`Viewing members of guild`);
   if (!members.length)
     return embed.setFields({
       name: "This guild has no members",
@@ -68,7 +91,7 @@ export const membersListEmbed = async (title: string, members: IMember[]) => {
   const memberRows = members
     .slice()
     .sort((a, b) => b.warnings - a.warnings)
-    .map((member) => memberToRow(member));
+    .map((member) => memberToRow(member, warnLimit));
 
   const numPages = Math.ceil(memberRows.length / MEMBERS_PER_PAGE);
   const pages: string[][] = [];
@@ -86,15 +109,15 @@ export const membersListEmbed = async (title: string, members: IMember[]) => {
   return embed;
 };
 
-const memberToRow = (member: IMember) => {
-  return `${warningBar(member.warnings)}${t()}${member.name} ${
+const memberToRow = (member: IMember, warnLimit?: number) => {
+  return `${warningBar(member.warnings, warnLimit)}${t()}${member.name} ${
     member.discordIdentity ? `(${member.discordIdentity})` : ""
   }`;
 };
 
-const warningBar = (warnings: number) => {
+const warningBar = (warnings: number, warnLimit?: number) => {
   return `${":x:".repeat(warnings)}${":heavy_multiplication_x:".repeat(
-    WARN_THRESHOLD - warnings
+    (warnLimit ?? DEFAULT_WARN_THRESHOLD) - warnings
   )}`;
 };
 

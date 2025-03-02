@@ -11,6 +11,7 @@ import { guildAutocomplete } from "../utils/autocomplete/guildAutocomplete.js";
 import { ISubguild } from "../types/IGuild.js";
 import { ObjectId } from "mongodb";
 import { autocompleteInteractionCollection } from "../utils/command-handler.js";
+import { getSettings } from "../store/settings.js";
 
 type SubCommandEnum = "moveall" | "check";
 
@@ -77,11 +78,9 @@ const addMember: ICommand = {
         );
         break;
       case "check":
-        const { members, guildName } = await getSubguild(
-          guildId,
-          subguildId
-        );
-        embed = membersListEmbed(guildName, members);
+        const { members, guildName } = await getSubguild(guildId, subguildId);
+        const {warnLimit} = await getSettings(guildId);
+        embed = membersListEmbed(guildName, members, warnLimit);
         break;
       default:
         embed = createEmbedTemplate();
