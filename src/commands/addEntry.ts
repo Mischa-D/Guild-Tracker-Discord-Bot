@@ -66,20 +66,25 @@ const addMember: ICommand = {
       ? new ObjectId(options.getString("guild")!)
       : undefined;
     const subCommand = options.getSubcommand() as SubCommandEnum;
+    console.log(subCommand);
 
     switch (subCommand) {
       case "member":
         const subguildName = subguildId
           ? getSubguildName(guildId, subguildId)
           : undefined;
-        const newMember = await createMember(guildId, {
-          name,
-          warnings: 0,
-          isActive: true,
-          isBanned: false,
-          discordIdentity,
-          guildName: await subguildName,
-        }, subguildId);
+        const newMember = await createMember(
+          guildId,
+          {
+            name,
+            warnings: 0,
+            isActive: true,
+            isBanned: false,
+            discordIdentity,
+            guildName: await subguildName,
+          },
+          subguildId
+        );
 
         embed = memberStatsEmbed(
           "New Member Added",

@@ -3,7 +3,7 @@ import { IMember } from "../types/IMember.js";
 import { ISubguild } from "../types/IGuild.js";
 import { WARN_THRESHOLD } from "../constants.js";
 
-const MEMBERS_PER_PAGE = 25;
+const MEMBERS_PER_PAGE = 100;
 
 export const createEmbedTemplate = async () => {
   const embed = new EmbedBuilder()
@@ -68,12 +68,7 @@ export const membersListEmbed = async (title: string, members: IMember[]) => {
   const memberRows = members
     .slice()
     .sort((a, b) => b.warnings - a.warnings)
-    .map(
-      (member) =>
-        `${warningBar(member.warnings)}\t${member.name}\s${
-          member.discordIdentity ? `(${member.discordIdentity})` : ""
-        }`
-    );
+    .map((member) => memberToRow(member));
 
   const numPages = Math.ceil(memberRows.length / MEMBERS_PER_PAGE);
   const pages: string[][] = [];
@@ -91,8 +86,18 @@ export const membersListEmbed = async (title: string, members: IMember[]) => {
   return embed;
 };
 
+const memberToRow = (member: IMember) => {
+  return `${warningBar(member.warnings)}${t()}${member.name} ${
+    member.discordIdentity ? `(${member.discordIdentity})` : ""
+  }`;
+};
+
 const warningBar = (warnings: number) => {
   return `${":x:".repeat(warnings)}${":heavy_multiplication_x:".repeat(
     WARN_THRESHOLD - warnings
   )}`;
+};
+
+const t = () => {
+  return "    ";
 };

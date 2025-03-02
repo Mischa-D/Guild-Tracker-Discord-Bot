@@ -15,7 +15,7 @@ import { ISubguild } from "../types/IGuild.js";
 import { ObjectId } from "mongodb";
 import { autocompleteInteractionCollection } from "../utils/command-handler.js";
 
-type SubCommandEnum = "moveAll" | "check";
+type SubCommandEnum = "moveall" | "check";
 
 const addMember: ICommand = {
   data: new SlashCommandBuilder()
@@ -58,12 +58,13 @@ const addMember: ICommand = {
 
     const subguildId = new ObjectId(options.getString("guild", true));
     const subCommand = options.getSubcommand() as SubCommandEnum;
+    console.log(subCommand);
 
     let embed: Promise<EmbedBuilder>;
     let subguild: ISubguild;
 
     switch (subCommand) {
-      case "moveAll":
+      case "moveall":
         const targetSubguildId = new ObjectId(
           options.getString("target", true)
         );
@@ -84,6 +85,7 @@ const addMember: ICommand = {
           subguildId
         );
         embed = membersListEmbed(subguildName, members);
+        break;
       default:
         embed = createEmbedTemplate();
         break;

@@ -7,6 +7,7 @@ import { ISubguild } from "../types/IGuild.js";
 import { dbInstance } from "./db.js";
 import { WithGuildId } from "../types/WithGuildId.js";
 import { ObjectId, WithId } from "mongodb";
+import { WARN_THRESHOLD } from "../constants.js";
 
 const db = () => {
   if (!dbInstance) throw Error("no database connection / instance missing");
@@ -50,11 +51,13 @@ export const getMembersOfSubguild = async (
     return { subguildName: subguild.guildName, members: [] };
   }
 
+  const members = await memberCollection()
+    .find({ guildId, _id: { $in: subguild.members } })
+    .toArray();
+
   return {
     subguildName: subguild.guildName,
-    members: await memberCollection()
-      .find({ _id: { $in: subguild.members } })
-      .toArray(),
+    members,
   };
 };
 
@@ -86,7 +89,8 @@ export const createMember = async (
         guildId,
         _id: subguildId,
       },
-      { $addToSet: { members: insertedId } }
+      { $addToSet: { members: insertedId } },
+      { returnDocument: "after" }
     );
     console.log("added user to guild", subguildId);
   }
@@ -120,7 +124,28 @@ export const updateMember = async (
 ) => {
   const member = await memberCollection().findOneAndUpdate(
     { guildId, _id: memberId },
-    { $set: memberUpdate }
+    { $set: memberUpdate },
+    { returnDocument: "after" }
+  );
+
+  if (!member) throw new MemberNotFoundError();
+
+  return member;
+};
+
+export const modifyWarnings = async (
+  guildId: string,
+  memberId: ObjectId,
+  modifyAmount: number
+) => {
+  const member = await memberCollection().findOneAndUpdate(
+    { guildId, _id: memberId },
+    {
+      $inc: { warnings: modifyAmount },
+      $min: { warnings: 0 },
+      $max: { warnings: WARN_THRESHOLD },
+    },
+    { returnDocument: "after" }
   );
 
   if (!member) throw new MemberNotFoundError();
@@ -135,7 +160,8 @@ export const updateGuild = async (
 ) => {
   const subguild = await subguildCollection().findOneAndUpdate(
     { guildId, _id: subguildId },
-    { $set: subguildUpdate }
+    { $set: subguildUpdate },
+    { returnDocument: "after" }
   );
 
   if (!subguild) throw new GuildNotFoundError();
@@ -143,21 +169,32 @@ export const updateGuild = async (
   return subguild;
 };
 
-export const moveGuildMember = async (
-  guildId: string,
-  newSubguildId: ObjectId,
-  memberId: ObjectId
-) => {
+const moveMemberFrom = async (guildId: string, memberId: ObjectId) => {
   subguildCollection().updateMany(
     {
       guildId,
-      members: { $elemMatch: memberId },
+      members: memberId,
     },
     { $pull: { members: memberId } }
   );
+};
+
+export const removeFromAllGuilds = async (
+  guildId: string,
+  memberId: ObjectId
+) => moveMemberFrom(guildId, memberId);
+
+export const moveGuildMember = async (
+  guildId: string,
+  memberId: ObjectId,
+  newSubguildId: ObjectId
+) => {
+  moveMemberFrom(guildId, memberId);
+
   const newSubguild = await subguildCollection().findOneAndUpdate(
     { guildId, _id: newSubguildId },
-    { $addToSet: { members: memberId } }
+    { $addToSet: { members: memberId } },
+    { returnDocument: "after" }
   );
 
   if (!newSubguild) throw new GuildNotFoundError();
@@ -178,7 +215,8 @@ export const moveAllGuildMembersFrom = async (
   // add members to target guild
   const newSubguild = await subguildCollection().findOneAndUpdate(
     { guildId, _id: newSubguildId },
-    { $push: { members: { $each: members } } }
+    { $push: { members: { $each: members } } },
+    { returnDocument: "after" }
   );
 
   if (!newSubguild) throw new GuildNotFoundError();

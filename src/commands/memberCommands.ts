@@ -5,9 +5,15 @@ import {
 } from "discord.js";
 import { memberStatsEmbed } from "../utils/embedutils.js";
 import { ICommand } from "../types/ICommand.js";
-import { getMember, moveGuildMember, updateMember } from "../store/store.js";
+import {
+  getMember,
+  modifyWarnings,
+  moveGuildMember,
+  removeFromAllGuilds,
+  updateMember,
+} from "../store/store.js";
 import { CustomError } from "../errors/CustomError.js";
-import { IUpdateMember } from "../types/IMember.js";
+import { IMember, IUpdateMember } from "../types/IMember.js";
 import { guildAutocomplete } from "../utils/autocomplete/guildAutocomplete.js";
 import { memberAutocomplete } from "../utils/autocomplete/memberAutocomplete.js";
 import { WARN_THRESHOLD } from "../constants.js";
@@ -107,55 +113,53 @@ const addMember: ICommand = {
 
     const memberid = new ObjectId(options.getString("name", true));
     const subCommand = options.getSubcommand() as SubCommandEnum;
+    console.log(subCommand);
 
     const newMember: IUpdateMember = {};
+    let member: IMember;
 
     switch (subCommand) {
       case "ban": {
         newMember.isBanned = true;
+        newMember.guildName = undefined;
+        member = await updateMember(guildId, memberid, newMember);
+        removeFromAllGuilds(guildId, memberid);
         break;
       }
       case "unban": {
         newMember.isBanned = false;
+        member = await updateMember(guildId, memberid, newMember);
         break;
       }
       case "move": {
         const subguildId = new ObjectId(options.getString("guild", true));
         const subguild = await moveGuildMember(guildId, subguildId, memberid);
         newMember.guildName = subguild.guildName;
+        member = await updateMember(guildId, memberid, newMember);
         break;
       }
       case "warn": {
-        const { warnings = 0, isBanned } =
-          (await getMember(guildId, memberid)) ?? {};
-        if (!isBanned)
-          newMember.warnings = Math.min(warnings + 1, WARN_THRESHOLD);
+        member = await modifyWarnings(guildId, memberid, 1);
         break;
       }
       case "unwarn": {
-        const { warnings = 0, isBanned } =
-          (await getMember(guildId, memberid)) ?? {};
-        if (!isBanned) newMember.warnings = Math.max(warnings - 1, 0);
+        member = await modifyWarnings(guildId, memberid, -1);
         break;
       }
+      case "check":
       default:
+        member = await getMember(guildId, memberid);
         break;
     }
 
-    let embed: EmbedBuilder;
+    let embed: Promise<EmbedBuilder>;
     if (subCommand === "check") {
-      const member = await getMember(guildId, memberid);
-      embed = await memberStatsEmbed(`${member.name}`, "Showing Entry", member);
+      embed = memberStatsEmbed(`${member.name}`, "Showing Entry", member);
     } else {
-      const updatedMember = await updateMember(guildId, memberid, newMember);
-      embed = await memberStatsEmbed(
-        "Member Updated",
-        "Updated Entry",
-        updatedMember
-      );
+      embed = memberStatsEmbed("Member Updated", "Updated Entry", member);
     }
 
-    await interaction.reply({ embeds: [embed] });
+    await interaction.reply({ embeds: [await embed] });
   },
   async autocomplete(interaction) {
     const { guildId } = interaction;
@@ -187,7 +191,7 @@ const addMember: ICommand = {
     const latestInteraction = autocompleteInteractionCollection.get(guildId);
     autocompleteInteractionCollection.set(guildId, null);
     latestInteraction &&
-      await latestInteraction.respond(choices).catch(console.error);
+      (await latestInteraction.respond(choices).catch(console.error));
   },
 };
 
